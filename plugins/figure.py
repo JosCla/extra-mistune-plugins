@@ -1,23 +1,42 @@
+from ..helpers import LINK_LABEL
+
 __all__ = ['figure']
 
-FIGURE_PATTERN = r'^~fig\((?P<fig_class>[^\s]+?)?[\s]*\n(?P<fig_img>[\s\S]+?)\n(?P<fig_caption>[\s\S]+?)\n\)~[\s]*$'
-# ^~fig\(                       open figure. must be at start of line
-# (?P<fig_class>[^\s]+?)?       class (final ? makes it optional)
-# [\s]*\n                      look past spaces to newline
-# (?P<fig_img>[\s\S]+?)\n       first line within is image
-# (?P<fig_caption>[\s\S]+?)\n   second line within is caption
-# \)~                           close figure
-# [\s]*$                       look past spaces to newline
+FIGURE_PATTERN = (
+    r'^~fig\('
+    r'(?P<fig_class>[^\s]+?)?[\s]*\n'           # figure class
+    r'(?P<fig_ident>' + LINK_LABEL + r'?)\n'    # figure identifier
+    r'(?P<fig_img>[\s\S]+?)\n'                  # figure image
+    r'(?P<fig_caption>[\s\S]+?)\n'              # figure caption
+    r'\)~[\s]*$'
+)
+
+FIGURE_REF_PATTERN = (
+    r'~fref\('
+    r'(?P<fig_ident>' + LINK_LABEL + r'?)'  # figure identifier
+    r'\)'
+)
+
+def get_ident_index(ident, state):
+    figidentmap = state.env.get('figidentmap')
+    ident = ident.strip()
+
+    if not figidentmap:
+        figidentmap = {}
+    if not ident in figidentmap:
+        nextkey = len(figidentmap.keys()) + 1
+        figidentmap[ident] = nextkey
+        state.env['figidentmap'] = figidentmap
+    
+    return figidentmap.get(ident)
 
 def parse_block_figure(block, m, state):
+    ident = m.group('fig_ident')
     img = m.group('fig_img')
     caption = m.group('fig_caption')
     figclass = m.group('fig_class')
 
-    figindex = state.env.get('nextfigindex')
-    if not figindex:
-        figindex = 1
-    state.env['nextfigindex'] = figindex + 1
+    figindex = get_ident_index(ident, state)
 
     state.append_token({
         'type': 'block_figure',
@@ -37,16 +56,32 @@ def parse_block_figure(block, m, state):
     })
     return m.end() + 1
 
+def parse_inline_figure_ref(inline, m, state):
+    ident = m.group('fig_ident')
+    figindex = get_ident_index(ident, state)
+
+    state.append_token({
+        'type': 'inline_figure_ref',
+        'attrs': {
+            'figindex': figindex
+        }
+    })
+
+    return m.end()
+
 def render_block_figure(renderer, children, figclass):
     if figclass == None:
-        return '<figure>' + children + '</figure>'
-    return '<figure class="figure-' + figclass + '">' + children + '</figure>'
+        return '<figure>\n' + children + '</figure>\n'
+    return '<figure class="figure-' + figclass + '">\n' + children + '</figure>\n'
 
 def render_fig_img(renderer, text):
-    return text
+    return text + '\n'
 
 def render_fig_caption(renderer, text, figindex):
-    return '<p>Figure ' + str(figindex) + ': ' + text + '</p>'
+    return '<p>Figure ' + str(figindex) + ': ' + text + '</p>\n'
+
+def render_inline_figure_ref(renderer, figindex):
+    return 'Figure ' + str(figindex)
 
 def figure(md):
     """
@@ -72,7 +107,9 @@ def figure(md):
     """
 
     md.block.register('block_figure', FIGURE_PATTERN, parse_block_figure, before='list')
+    md.inline.register('inline_figure_ref', FIGURE_REF_PATTERN, parse_inline_figure_ref, before='link')
     if md.renderer and md.renderer.NAME == 'html':
         md.renderer.register('block_figure', render_block_figure)
         md.renderer.register('fig_img', render_fig_img)
         md.renderer.register('fig_caption', render_fig_caption)
+        md.renderer.register('inline_figure_ref', render_inline_figure_ref)
