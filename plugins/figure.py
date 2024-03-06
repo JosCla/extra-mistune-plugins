@@ -89,10 +89,11 @@ def figure(md):
 
     .. figure-block:: text
 
-        Figure is surrounded by ~fig( and )fig~, and has two lines within:
-        image, and caption.
+        Figure is surrounded by ~fig( and )fig~, and has three lines within:
+        identifier, image, and caption.
 
         ~fig(
+        identifier
         ![alt](source title)
         caption
         )~
@@ -102,6 +103,19 @@ def figure(md):
         ~fig(class
 
         This will add figure-[class] as a class to the figure.
+
+        When rendering the document, the caption will automatically have
+        ascending "Figure #: " prepended.
+
+    .. figure-ref:: text
+
+        To reference a figure in text, use:
+
+        ~fref(identifier)
+
+        The identifier should be the same as the one provided with the figure.
+
+        This will be replaced with "Figure #", with # matching the figure.
 
     :param md: Markdown instance
     """
