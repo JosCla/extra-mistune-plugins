@@ -1,26 +1,33 @@
 __all__ = ['secret']
 
-SECRET_PATTERN = r'~secret\((?P<secret_text>[\s\S]+?)~,~(?P<secret_title>[\s\S]+?)\)~'
-# ~secret\(                     open secret
-# (?P<secret_text>[\s\S]+?)     secret render text
-# ~,~                           double-tilde splitter
-# (?P<secret_title>[\s\S]+?)    secret title text
-# \)~                           close secret
+SECRET_PATTERN = (
+    r'~secret\('
+    r'(?P<secret_text>[\s\S]+?)'    # secret render text
+    r'~,~'
+    r'(?P<secret_title>[\s\S]+?)'   # secret hover text
+    r'\)~'
+)
 
 def parse_inline_secret(inline, m, state):
     text = m.group('secret_text')
     title = m.group('secret_title')
+
+    new_state = state.copy()
+    new_state.src = text
+    children = inline.render(new_state)
+
     state.append_token({
         'type': 'inline_secret',
-        'raw': text,
+        'children': children,
         'attrs': {
             'title': title
         }
     })
+
     return m.end()
 
-def render_inline_secret(renderer, text, title):
-    return '<span class="hidden-footnote" title="' + title + '">' + text + '</span>'
+def render_inline_secret(renderer, children, title):
+    return '<span class="hidden-footnote" title="' + title + '">' + children + '</span>'
 
 def secret(md):
     """
