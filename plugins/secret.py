@@ -8,26 +8,49 @@ SECRET_PATTERN = (
     r'\)~'
 )
 
+NOTE_PATTERN = (
+    r'~note\('
+    r'(?P<note_text>[\s\S]+?)'  # render text
+    r'~,~'
+    r'(?P<note_title>[\s\S]+?)' # hover text
+    r'\)~'
+)
+
+def parse_inline_note(inline, m, state):
+    text = m.group('note_text')
+    title = m.group('note_title')
+
+    parse_inline_generalnote(inline, state, text, title, False)
+
+    return m.end()
+
 def parse_inline_secret(inline, m, state):
     text = m.group('secret_text')
     title = m.group('secret_title')
 
+    parse_inline_generalnote(inline, state, text, title, True)
+
+    return m.end()
+
+def parse_inline_generalnote(inline, state, text, title, isHidden):
     new_state = state.copy()
     new_state.src = text
     children = inline.render(new_state)
 
     state.append_token({
-        'type': 'inline_secret',
+        'type': 'inline_note',
         'children': children,
         'attrs': {
-            'title': title
+            'title': title,
+            'isHidden': isHidden
         }
     })
 
-    return m.end()
-
-def render_inline_secret(renderer, children, title):
-    return '<span class="hidden-footnote" title="' + title + '">' + children + '</span>'
+def render_inline_generalnote(renderer, children, title, isHidden):
+    if isHidden:
+        return '<span class="hidden-note" title="' + title + '">' + children + '</span>'
+    else:
+        return '<span class="note" title="' + title + '">' + children + '</span>'
 
 def secret(md):
     """
@@ -41,8 +64,17 @@ def secret(md):
 
         This will display 'a', with a hover title of 'b'. Perfect for putting
         some sneaky commentary!
+
+    .. note-inline:: text
+
+        Inline notes are constructed as such:
+
+        ~note(a~,~b)~
+
+        It's the same as the secret, but will be given a different class.
     """
 
+    md.inline.register('inline_note', NOTE_PATTERN, parse_inline_note, before='link')
     md.inline.register('inline_secret', SECRET_PATTERN, parse_inline_secret, before='link')
     if md.renderer and md.renderer.NAME == 'html':
-        md.renderer.register('inline_secret', render_inline_secret)
+        md.renderer.register('inline_note', render_inline_generalnote)
