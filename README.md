@@ -6,3 +6,4 @@ These are some extra plugins made to work with [Mistune](https://mistune.lepture
 
 - figure.py: Generates figures, including the figure image, and the figure caption.
 - secret.py: Generates hidden hover texts.
+- section.py: Very simple plugin for placing HTML sections.
