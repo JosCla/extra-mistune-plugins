@@ -11,6 +11,13 @@ FIGURE_PATTERN = (
     r'\)~[\s]*$'
 )
 
+SIMPLE_FIGURE_PATTERN = (
+    r'^~simplefig\('
+    r'(?P<simplefig_class>[^\s]+?)?[\s]*\n'     # figure class
+    r'(?P<simplefig_img>[\s\S]+?)\n'            # figure image
+    r'\)~[\s]*$'
+)
+
 FIGURE_REF_PATTERN = (
     r'~fref\('
     r'(?P<fig_ident>' + LINK_LABEL + r'?)'  # figure identifier
@@ -49,6 +56,21 @@ def parse_block_figure(block, m, state):
                     'figindex': figindex
                 }
             }
+        ],
+        'attrs': {
+            'figclass': figclass
+        }
+    })
+    return m.end() + 1
+
+def parse_block_simplefigure(block, m, state):
+    img = m.group('simplefig_img')
+    figclass = m.group('simplefig_class')
+
+    state.append_token({
+        'type': 'block_simplefigure',
+        'children': [
+            {'type': 'fig_img', 'text': img},
         ],
         'attrs': {
             'figclass': figclass
@@ -121,8 +143,10 @@ def figure(md):
     """
 
     md.block.register('block_figure', FIGURE_PATTERN, parse_block_figure, before='list')
+    md.block.register('block_simplefigure', SIMPLE_FIGURE_PATTERN, parse_block_simplefigure, before='list')
     md.inline.register('inline_figure_ref', FIGURE_REF_PATTERN, parse_inline_figure_ref, before='link')
     if md.renderer and md.renderer.NAME == 'html':
+        md.renderer.register('block_simplefigure', render_block_figure)
         md.renderer.register('block_figure', render_block_figure)
         md.renderer.register('fig_img', render_fig_img)
         md.renderer.register('fig_caption', render_fig_caption)
